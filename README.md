@@ -1,415 +1,267 @@
-# algorithmproject
+# Class Efficiency Scheduling System
+
+An automatic class scheduler for **National University – Laguna**. Enter how many students are enrolled, add the courses and rooms, and the system generates a full weekly timetable: every section gets a room, days and a time for each class, and every placement is checked against existing room and section bookings. Anything that can't be placed is listed in a conflict report so you know exactly what to fix.
+
+![React](https://img.shields.io/badge/React-20232A?logo=react&logoColor=61DAFB)
+![Vite](https://img.shields.io/badge/Vite-646CFF?logo=vite&logoColor=white)
+![Node.js](https://img.shields.io/badge/Node.js-339933?logo=nodedotjs&logoColor=white)
+![Express](https://img.shields.io/badge/Express-000000?logo=express&logoColor=white)
+![MySQL](https://img.shields.io/badge/MySQL-4479A1?logo=mysql&logoColor=white)
+
+---
+
+## Contents
+
+- [Why we built it](#why-we-built-it)
+- [Features](#features)
+- [How to use it](#how-to-use-it)
+- [How the scheduling algorithm works](#how-the-scheduling-algorithm-works)
+- [Screens](#screens)
+- [Tech stack](#tech-stack)
+- [Database](#database)
+- [Project structure](#project-structure)
+- [API endpoints](#api-endpoints)
+- [Getting started](#getting-started)
+- [Further reading](#further-reading)
+- [Team](#team)
+
+---
+
+## Why we built it
+
+Building a class schedule by hand means juggling hundreds of courses, sections and rooms in a spreadsheet, and a single clash (two classes in one room, or one section in two places at once) can take hours to find. This system does the placement automatically, checks every slot for clashes as it goes, and reports anything it couldn't fit.
 
 ## Features
 
-### ✅ Core Features
-- Course Management (CRUD operations)
-- Room Management 
-- Section Management
-- **Excel Import** - Bulk import courses from Excel files
-- **Term-Based Scheduling** - Smart scheduling that groups courses by term to minimize conflicts
-- Schedule Generation with conflict detection
-- Schedule Viewing by section and room
+- **Enrollment → sections**: enter the number of students per program and year level, and sections are created automatically (up to 40 students each, split evenly: 75 students → sections A and B with 38 and 37)
+- **Course management**: add, edit and delete courses for **BSCS, BSIS and BSIT**, years 1–4, as *lecture*, *laboratory* or *lecture + lab*, assigned to Term 1, 2 or 3
+- **Excel import**: bulk-import courses from a spreadsheet, validated for required columns and valid programs, years, types and terms, with a downloadable template
+- **Room management**: lecture rooms and computer labs, available 7:00 AM – 9:00 PM by default
+- **One-click schedule generation** using the algorithm described below
+- **Conflict report**: every class that couldn't be placed, with its course, section, term and the reason
+- **Three schedule views**, each grouped by term:
+  - **By section**: a class's full weekly timetable
+  - **By room**: what's happening in each room
+  - **Master grid**: everything at once
+- **Excel export** of the generated schedule (`NU_Schedule_<date>.xlsx`)
+- **Dashboard** with totals for sections, rooms and generated schedules, plus a step-by-step getting-started guide
 
-### 🆕 Term-Based Scheduling (October 2025)
-The scheduling system now intelligently groups courses by term before generating schedules:
-- **TERM 1**, **TERM 2**, and **TERM 3** courses are scheduled separately
-- Each term gets fresh room availability tracking
-- Reduces scheduling conflicts significantly (80-90% reduction)
-- Displays which term each conflict belongs to
-- Perfect for institutions with modular/semester-based course delivery
+## How to use it
 
-### 📊 Scheduling Features
-- Automatic room allocation
-- Conflict detection and reporting with term information
-- Support for lecture, laboratory, and lecture+lab courses
-- Time slot optimization
-- Room type matching (lecture rooms for lectures, lab rooms for lab courses)
-- Three-way schedule viewing: By Section, By Room, By Master Grid
-- All views automatically organized by term
-
-## How Term-Based Scheduling Works
-
-### What Changed
-**Before**: All 146 courses competing for the same rooms simultaneously → 203+ conflicts
-**After**: Courses grouped by term, each term scheduled separately → Minimal conflicts
-
-### The Smart Algorithm
-1. **Separates courses into 3 groups**:
-   - TERM 1 courses (scheduled first)
-   - TERM 2 courses (scheduled second with fresh room availability)
-   - TERM 3 courses (scheduled third independently)
-
-2. **For each term**:
-   - Gets a fresh set of room availability
-   - Prioritizes leclab courses first (harder to fit)
-   - Allocates rooms based on available time slots
-   - Tracks occupancy only within that term
-
-3. **Result**: Courses from different terms don't conflict because they're scheduled with independent room tracking
-
-### Why This Works
-If you have 146 courses across 3 terms:
-- **Old way**: 146 courses all competing = Very high conflicts ❌
-- **New way**: ~49 courses per term = Easy to fit into rooms ✅
-
-## 🔧 Improved Sorting Logic (Fixed for Fewer Conflicts)
-
-### The Problem (Why 256 Conflicts?)
-The old sorting only prioritized:
-- Course type (leclab first)
-- Number of sections
-
-This caused **unrelated courses** to be scheduled randomly, leading to conflicts.
-
-### The Solution (Hierarchical Sorting)
-Courses are now sorted using this priority order:
-
-**1️⃣ Program** (BSCS → BSIS → BSIT)
-- Keeps same-program courses together
-- Reduces cross-program room competition
-
-**2️⃣ Term** (TERM 1 → TERM 2 → TERM 3)
-- Organized by academic term
-- Each term is independent
-
-**3️⃣ Year Level** (1 → 2 → 3 → 4)
-- Courses for year 1 scheduled before year 2
-- Same year courses share same time slots
-- Prevents scheduling same-year courses at overlapping times
-
-**4️⃣ Course Name** (Alphabetically)
-- Ensures consistency
-- Related courses scheduled together
-
-**5️⃣ Course Type** (leclab → lecture → laboratory)
-- Harder courses scheduled first
-- leclab courses need both lecture and lab rooms (most constrained)
-
-**6️⃣ Course ID** (Fallback)
-- Breaks any ties
-
-### Example Sorting Output
-```
-TERM 1:
-  1. [BSCS] Y1 - Calculus 1 (lecture)
-  2. [BSCS] Y1 - Computer Fundamentals (leclab)
-  3. [BSCS] Y1 - English 1 (lecture)
-  4. [BSCS] Y2 - Data Structures (leclab)
-  5. [BSIS] Y1 - Accounting (lecture)
-  6. [BSIT] Y1 - Programming (leclab)
-  7. [BSIT] Y2 - Databases (lecture)
+```mermaid
+flowchart LR
+    E[1. Enrollment<br/>students per year level] --> S[Sections created<br/>max 40 each]
+    C[2. Courses<br/>add or import from Excel] --> G
+    R[3. Rooms<br/>lecture rooms + labs] --> G
+    S --> G[4. Generate schedule]
+    G --> V[5. View by section,<br/>room or master grid]
+    G --> X[Conflict report]
+    V --> EX[Export to Excel]
 ```
 
-### Why This Reduces Conflicts
-- ✅ **Same-program courses scheduled together** → Share resources efficiently
-- ✅ **Same-year courses scheduled together** → Avoid year-level conflicts
-- ✅ **Related courses grouped** → Logical scheduling order
-- ✅ **Hardest courses first** → leclab courses get priority for rooms
-- ✅ **Fresh room tracking per term** → No cross-term interference
+## How the scheduling algorithm works
 
-### Debug Logs
-When you generate a schedule, check the **Terminal/Console** to see:
-```
-============================================================
-Generating schedule for TERM 1 (52 courses)...
-============================================================
+The scheduler is in [`backend/scheduler.js`](backend/scheduler.js). It's a **greedy, constraint-checking algorithm**: it places the hardest classes first, and every placement is checked against both the room's and the section's existing bookings.
 
-Courses sorted order for TERM 1:
-1. [BSCS] Y1 - Calculus 1 (lecture)
-2. [BSCS] Y1 - Computer Fundamentals (leclab)
-...
-52. [BSIT] Y4 - Capstone Project (leclab)
-
-Scheduling 52 courses...
-✅ Scheduled: 52 courses
-❌ Conflicts: 0 courses
+```mermaid
+flowchart TD
+    A[All courses, sections, rooms] --> B[Group courses by<br/>program → term]
+    B --> C[For each program + term:<br/>start with fresh room & section availability]
+    C --> D[Sort courses:<br/>year level → lecture+lab first → name]
+    D --> E[For each course, for each section of that year]
+    E --> F{Find free slots in a room<br/>of the right type, on different days}
+    F -->|found| G[Book the room and the section]
+    F -->|not found| H[Add to conflict report<br/>with the reason]
+    G --> E
+    H --> E
 ```
 
-This shows exactly how courses are being sorted and scheduled!
+### The rules it follows
 
-## Using the System
+| Rule | Detail |
+| --- | --- |
+| **Room type matches class type** | Lectures go to lecture rooms; laboratory classes go to labs; *lecture + lab* courses need both |
+| **No double-booking** | Within a program's term, a room can't host two classes at once and a section can't attend two classes at once |
+| **Sessions per week** | Years 1–2: **2 sessions** per course; Years 3–4: **1 session** (frees up room capacity) |
+| **Different days** | A course's sessions for one section never land on the same day |
+| **Days and times** | Monday – Saturday, starting on the hour or half hour, within each room's operating hours |
+| **Session length** | BSIT: 2 h lecture, 2 h lab. BSCS / BSIS: 2 h 40 min lecture, 4 h lab |
+| **Hardest first** | *Lecture + lab* courses are placed before lecture-only and lab-only courses because they need two free rooms |
 
-### Adding Courses with Terms
-1. Go to **Courses** tab
-2. Select Program, Year Level, Course details
-3. **Choose a Term** (TERM 1, TERM 2, or TERM 3) - **Required!**
-4. Select course type (lecture, laboratory, leclab)
-5. Add the course
+### Why group by term?
 
-### Importing Courses via Excel
-1. Download the template from Courses page
-2. Fill in your courses with these **REQUIRED** columns:
-   - Program (BSIT, BSCS, BSIS)
-   - Year (1, 2, 3, 4)
-   - Code (course code)
-   - Name (course name)
-   - Type (lecture, laboratory, leclab)
-   - **Term** (TERM 1, TERM 2, or TERM 3) - **NEW & REQUIRED!**
-3. Import the file
-4. Confirm the validation summary
-5. Courses are added with term information
+Term 1, 2 and 3 classes never run at the same time, so they shouldn't compete for the same rooms. Scheduling each term separately, with fresh room availability, cut conflicts by roughly **80–90%** in our testing: a 146-course load went from **200+ conflicts** when scheduled all at once to minimal conflicts.
 
-### Generating Schedule
-1. Go to **Schedule Generator** tab
-2. Ensure you have:
-   - ✅ Courses added (with terms assigned)
-   - ✅ Rooms created
-   - ✅ Sections configured
-3. Click **"Generate Schedule"**
-4. The system will:
-   - Schedule TERM 1 courses first
-   - Schedule TERM 2 courses second
-   - Schedule TERM 3 courses third
-   - Report any conflicts per term
+## Screens
 
-### Viewing Schedules
-Navigate to **View Schedules** tab with three options:
+| Page | What it's for |
+| --- | --- |
+| Dashboard | Totals and the getting-started steps |
+| Enrollment | Enter students per program and year level to create sections |
+| Courses | Add, edit, delete and Excel-import courses |
+| Rooms | Add and remove lecture rooms and labs |
+| Generate Schedule | Run the scheduler and read the conflict report |
+| View Schedules | By section, by room or the master grid, plus Excel export |
 
-#### **By Section**
-- See all courses for a specific section
-- **Automatically grouped by TERM 1, TERM 2, TERM 3**
-- Shows course code, name, type, days, time, and room
+<!--
+Screenshots: save images in docs/screenshots/ and uncomment.
 
-#### **By Room**
-- See which section is using each room
-- **Automatically grouped by TERM 1, TERM 2, TERM 3**
-- Shows section, course, type, days, and time
+| Dashboard | Generated schedule |
+| --- | --- |
+| ![Dashboard](docs/screenshots/dashboard.png) | ![Schedule](docs/screenshots/schedule.png) |
+-->
 
-#### **By Master Grid**
-- Complete overview of all schedules
-- **Automatically grouped by TERM 1, TERM 2, TERM 3**
-- Shows section, course code, name, type, days, time, and room
+## Tech stack
 
-### Understanding Conflicts
-The conflict report now shows:
-| Field | Meaning |
-|-------|---------|
-| Course | Which course couldn't be scheduled |
-| Section | Which section was affected |
-| **Term** | Which TERM the conflict is in (new!) |
-| Reason | Why: "No available room", "No time slot", etc. |
+| Layer | Technology |
+| --- | --- |
+| Frontend | React 19, Vite, Axios |
+| Spreadsheets | [SheetJS (xlsx)](https://sheetjs.com/) for Excel import, template and export |
+| Backend | Node.js, Express |
+| Database | MySQL (via `mysql2`) |
+| Dev tools | nodemon, ESLint |
 
-**Solution**: Add more rooms if you have too many conflicts in a term.
+## Database
 
-## Tips for Best Results
+```mermaid
+erDiagram
+    programs ||--o{ sections : has
+    programs ||--o{ courses : offers
+    sections ||--o{ schedules : attends
+    courses ||--o{ schedules : "scheduled as"
+    rooms ||--o{ schedules : hosts
 
-### For Large Imports (100+ courses)
-1. **Split by term** if possible:
-   - Import TERM 1 courses (50 courses)
-   - Import TERM 2 courses (50 courses)
-   - Import TERM 3 courses (remaining)
-   - This shows progress and helps identify issues
-
-2. **Verify term assignments** in your Excel file before importing
-   - Every course MUST have a term assigned
-   - Valid terms: TERM 1, TERM 2, TERM 3
-
-### For Minimal Conflicts
-1. Add more rooms (especially if you see many conflicts in one term)
-2. Distribute courses evenly across the three terms
-3. Use leclab for combined lecture+lab courses
-4. Ensure you have enough lab rooms for BSIT laboratory courses
-
-### For Scheduling
-- Recommend at least 10 lecture rooms and 3-5 lab rooms
-- Each room should have 7 AM - 9 PM availability
-- The system works best with 50-70 courses per term
-
-## Database Tables
-
-### Courses
-- `id`, `code`, `name`, `type`, `term` ← NEW, `hours_lecture`, `hours_lab`, `program_id`, `year_level`, timestamps
-
-### Schedules
-- `id`, `section_id`, `course_id`, `room_id`, `day_pattern`, `start_time`, `end_time`, `schedule_type`
-
-### Programs
-- `id`, `code` (BSIT, BSCS, BSIS), `name`
-
-### Rooms
-- `id`, `name`, `type` (lecture/lab), `start_time`, `end_time`, `capacity`
-
-### Sections
-- `id`, `program_id`, `year_level`, `letter`, `total_students`, `program_code`
-
-## 🚨 CRITICAL: Room Capacity Analysis
-
-### Current Setup Analysis
-With **145 courses, 26 sections, 3 lecture rooms, 2 lab rooms**:
-
-#### Room Demand Calculation
-```
-145 courses × 2 sessions/week = 290 total sessions needed
-
-Assuming ~60% lecture, ~10% lab, ~30% leclab:
-- Lecture sessions: 87 × 2 = 174 sessions
-- Lab sessions: 14.5 × 2 = 29 sessions  
-- LecLab sessions: 43.5 × 2 (lecture) = 87 + 87 = 174 sessions
-
-Total: 174 lecture + 87 leclab_lecture = 261 lecture sessions
-Total: 29 + 87 leclab_lab = 116 lab sessions
+    programs {
+        int id PK
+        varchar code "BSIT | BSCS | BSIS"
+        varchar name
+    }
+    sections {
+        int id PK
+        int program_id FK
+        int year_level "1-4"
+        char letter "A, B, C..."
+        int student_count
+    }
+    courses {
+        int id PK
+        varchar code
+        varchar name
+        enum type "lecture | laboratory | leclab"
+        decimal hours_lecture
+        decimal hours_lab
+        enum term "TERM 1 | TERM 2 | TERM 3"
+        int program_id FK
+        int year_level
+    }
+    rooms {
+        int id PK
+        varchar name
+        enum type "lecture | laboratory"
+        time start_time "default 07:00"
+        time end_time "default 21:00"
+        varchar available_days
+    }
+    schedules {
+        int id PK
+        int section_id FK
+        int course_id FK
+        int room_id FK
+        varchar day_pattern
+        time start_time
+        time end_time
+        enum schedule_type "lecture | lab"
+    }
 ```
 
-#### Available Room Capacity
+## Project structure
+
 ```
-Lecture Rooms:
-- 3 rooms × 5 days × 10 hours/day = 150 hours/week
-- 150 hours ÷ 2 hours/session = 75 sessions/week ❌ NOT ENOUGH
-
-Lab Rooms:
-- 2 rooms × 5 days × 10 hours/day = 100 hours/week
-- 100 hours ÷ 2 hours/session = 50 sessions/week ❌ NOT ENOUGH
-```
-
-### ⚠️ The Problem
-**You need at least:**
-- 🚨 **8-10 lecture rooms** (currently have 3)
-- 🚨 **5-7 lab rooms** (currently have 2)
-
-### ✅ Solutions
-
-#### Option 1: Add More Rooms (Recommended)
-1. Go to **Rooms** page
-2. Add 5-7 more lecture rooms
-3. Add 3-5 more lab rooms
-4. Try scheduling again
-
-#### Option 2: Split Courses Across More Terms
-If you can't add rooms, distribute courses differently:
-- Currently: 145 courses across 3 terms (~48-49 each)
-- Better: 40-50 courses per term with available rooms
-
-#### Option 3: Reduce Course Count
-- Remove duplicate/unnecessary courses
-- Combine related courses
-- Move some courses to other semesters
-
-### Formula for Room Requirements
-```
-Needed Lecture Rooms = (Lecture Courses × 2) ÷ (5 days × 10 hours)
-Needed Lab Rooms = (Lab Courses × 2) ÷ (5 days × 10 hours)
+algorithmproject/
+├── backend/
+│   ├── server.js        # Express API
+│   ├── scheduler.js     # Scheduling algorithm (ScheduleGenerator)
+│   ├── db.js            # MySQL connection pool
+│   └── database.sql     # Schema + program seed data
+├── frontend/
+│   ├── src/
+│   │   ├── index.jsx    # App: dashboard, enrollment, courses, rooms, generator, views
+│   │   ├── main.jsx
+│   │   └── App.css, index.css
+│   └── vite.config.js
+├── package.json         # Backend dependencies + scripts
+└── *.md                 # Design notes (see Further reading)
 ```
 
-### Example: 145 Courses, 26 Sections
-```
-Recommended minimum:
-- 8 lecture rooms (provides 160 session capacity)
-- 5 lab rooms (provides 250 session capacity)
-- Result: Minimal conflicts!
-```
+## API endpoints
 
-## Recent Updates (October 22, 2025)
+All endpoints are under `/api` and return JSON.
 
-✅ **Term-based scheduling algorithm** - Courses grouped by term before scheduling
-✅ **Separate room availability per term** - Fresh room tracking for each term
-✅ **Schedule views with term headers** - All three views now show TERM 1, 2, 3 sections
-✅ **Backend API updates** - All schedule queries include term field
-✅ **Conflict reporting with terms** - See which term has conflicts
-✅ **Console logging** - Debug import process with detailed logging
-✅ **Documentation** - Complete guide for term-based features
+| Method | Endpoint | What it does |
+| --- | --- | --- |
+| GET | `/programs` | List programs |
+| POST | `/sections/generate` | Create sections from enrollment numbers (clears existing sections and schedules) |
+| GET | `/sections` | List sections |
+| GET · POST | `/courses` | List courses · add one or many (used by Excel import) |
+| PUT · DELETE | `/courses/:id` | Edit · delete a course |
+| GET · POST | `/rooms` | List rooms · add rooms |
+| DELETE | `/rooms/:id` | Delete a room |
+| POST | `/schedules/generate` | Run the scheduler; returns the number of classes placed and the conflict list |
+| GET · DELETE | `/schedules` | All schedules · clear them |
+| GET | `/schedules/by-section/:sectionId` | One section's timetable |
+| GET | `/schedules/by-room/:roomId` | One room's timetable |
 
-## Latest Updates (October 22, 2025 - Evening)
+## Getting started
 
-✅ **Improved sorting logic** - Program → Term → Year → Course Name → Type hierarchy
-✅ **Better conflict analysis** - Console shows room capacity vs demand per term
-✅ **Enhanced Excel export** - Multiple sheets (one per program) sorted by Program/Term/Year
-✅ **Room capacity warnings** - System now warns when rooms are insufficient
-✅ **Detailed conflict reporting** - Shows course type, name, and specific reason
-✅ **Success rate metrics** - Console shows percentage of successful scheduling
+### Requirements
+- [Node.js](https://nodejs.org/) 20.19+ (required by Vite 7)
+- MySQL 8 or MariaDB (XAMPP works)
 
-## 🚀 NEW: Flexible Scheduling Algorithm (October 22, 2025 - Late)
+### Setup
 
-### The Breakthrough
-Instead of requiring specific day patterns (Mon-Wed, Tue-Thu, etc.), the NEW algorithm:
+1. **Clone and install**
+   ```bash
+   git clone https://github.com/kyleparas47-beep/algorithmproject.git
+   cd algorithmproject
+   npm install
+   cd frontend && npm install && cd ..
+   ```
+2. **Create the database**: run `backend/database.sql` in MySQL (phpMyAdmin → Import, or `mysql -u root < backend/database.sql`). It creates the `nu_scheduling` database, its tables and the three programs.
+3. **Configure the connection** (optional): create a `.env` file in the project root if your MySQL login isn't the default `root` with no password:
+   ```env
+   DB_HOST=localhost
+   DB_USER=root
+   DB_PASSWORD=
+   DB_NAME=nu_scheduling
+   ```
+4. **Start the API** (port 3000):
+   ```bash
+   npm run server
+   ```
+5. **Start the frontend** in a second terminal:
+   ```bash
+   cd frontend
+   npm run dev
+   ```
+6. Open the URL Vite prints (usually <http://localhost:5173>) and follow the **Getting Started** steps on the dashboard.
 
-✅ **Finds ANY 2 available time slots** for any course
-✅ **Uses 30-minute granularity** instead of 20-minute (more flexibility)
-✅ **Searches all 5 days** (Mon-Fri) for availability
-✅ **Packs courses more efficiently** into the 5 available rooms
-✅ **Avoids time wasting** - uses exact hours needed (2 hours, 2.67 hours, etc.)
+> **Tip:** if you get many conflicts, the conflict report tells you which term is short on rooms. Add rooms (especially labs for *lecture + lab* courses) or spread courses more evenly across the three terms.
 
-### How It Works
-```
-OLD Algorithm:
-- Must use predefined patterns: [Mon,Wed], [Tue,Thu], etc.
-- Very rigid - many slots wasted
-- Result: Many conflicts even with available rooms
+## Further reading
 
-NEW Algorithm:
-- Try ANY time slot: 8:00-10:00, 8:30-10:30, 9:00-11:00, etc. on ANY day
-- Extremely flexible - finds the best available slots
-- Uses only the exact hours needed
-- Result: Fits ALL courses into available rooms! ✅
-```
+Design notes written while building and tuning the scheduler:
 
-### Algorithm Flow
-```
-For each course:
-  1. For each room (lecture/lab):
-     2. Search all 5 days (Mon-Fri)
-     3. Try all possible times (8:00, 8:30, 9:00, 9:30, etc.)
-     4. Find 2 available slots (same room or different rooms)
-     5. If found → Schedule course ✅
-  6. If not found in any room → Conflict ❌
-```
+- [TERM_BASED_SCHEDULING.md](TERM_BASED_SCHEDULING.md): term grouping, sorting order and room-capacity math
+- [SMART_SESSION_ALLOCATION.md](SMART_SESSION_ALLOCATION.md): why years 3–4 get one session per week
+- [DIFFERENT_DAYS_FIX.md](DIFFERENT_DAYS_FIX.md): keeping a course's sessions on separate days
+- [QUICKSTART_IMPROVEMENTS.md](QUICKSTART_IMPROVEMENTS.md) · [DEBUGGING_GUIDE_CHAIN_OF_THOUGHT.md](DEBUGGING_GUIDE_CHAIN_OF_THOUGHT.md) · [systemflow.md](systemflow.md)
 
-### Example: How 145 Courses Now Fit in 5 Rooms
+## Team
 
-**Before** (Old rigid algorithm with 257 conflicts):
-```
-Room 1 (Lecture):  Mon 8-10, Tue 8-10, ...
-Room 2 (Lecture):  Mon 2-4, Tue 2-4, ...
-Room 3 (Lecture):  Empty ❌
-Labs 1-2:          Mostly empty ❌
-Result: Wasted room time!
-```
+Built by a team of 5 at National University – Laguna (2025).
 
-**After** (New flexible algorithm):
-```
-Room 1 (Lecture):  Mon 8-10, Mon 10-12, Tue 8-9.5, Tue 10-11, ...
-Room 2 (Lecture):  Mon 2-3.5, Mon 3:30-5, Tue 2-4, Wed 8-10, ...
-Room 3 (Lecture):  All slots used efficiently
-Labs 1-2:          All slots packed
-Result: Optimal packing = minimal conflicts! ✅
-```
+- **Kyle Justine Paras**: Team lead · Full-stack developer · UI design
 
-### Time Slot Examples
-The new algorithm can now use:
-- 8:00-9:00 (for 1-hour lecture sessions)
-- 8:30-10:30 (for 2-hour sessions)
-- 9:00-10:45 (for 1.75-hour sessions)
-- 10:00-12:40 (for 2.67-hour sessions)
-- **ANY 30-minute aligned time slots**
+## License
 
-This vastly increases the chance of finding available slots!
-
-## Troubleshooting
-
-### "No courses appearing after import"
-- Check browser console (F12 → Console) for errors
-- Ensure you clicked OK on the validation popup
-- Try refreshing the page
-- Import in smaller batches (50 courses at a time)
-
-### "Schedule generated but 203 conflicts"
-- This was the old system. Now you should see far fewer!
-- If still getting many conflicts: Add more rooms
-- Check that courses are distributed across terms
-
-### "Term column not showing in schedule view"
-- Schedules are now automatically grouped by term headers
-- Each term has its own section (TERM 1, TERM 2, TERM 3)
-- Look for the blue term headers in the schedule view
-
-### "Import says 'Invalid program code undefined'"
-- Your Excel column headers don't match exactly
-- Download template from Courses page
-- Use EXACTLY these headers: Program | Year | Code | Name | Type | Term
-
-## Support
-For issues:
-1. Check browser console (F12)
-2. Verify your Excel file matches the template exactly
-3. Ensure all required fields are filled (including Term)
-4. Check that you have rooms and sections configured
+Developed for academic purposes.
