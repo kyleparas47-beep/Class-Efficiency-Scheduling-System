@@ -261,6 +261,10 @@ Design notes written while building and tuning the scheduler:
 Built by a team of 5 at National University – Laguna (2025).
 
 - **Kyle Justine Paras**: Team lead · Full-stack developer · UI design
+- Faith Barba
+- Charles De Leon
+- Christian De Ocampo
+- Ellysa Del Prado
 
 ## License
 
